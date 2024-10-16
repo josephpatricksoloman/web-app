@@ -40,22 +40,32 @@ pipeline {
         stage('Push to Docker Hub') {
             steps {
                 script {
-                    // Check if this is a merge from dev to main
-                    if (env.GIT_BRANCH == 'main' && env.GIT_PREVIOUS_SUCCESSFUL_BRANCH == 'dev') {
+                    // Determine if we need to push to prod
+                    if (env.GIT_BRANCH == 'main' && env.CHANGE_ID) {
                         echo "Detected merge from dev to main, pushing to production."
-                    } else {
-                        echo "Pushing image with tag: ${IMAGE_TAG}"
+                        IMAGE_TAG = "josephpatricksoloman/prod:latest"
                     }
+
+                    echo "Pushing image with tag: ${IMAGE_TAG}"
 
                     // Tag and push the image
                     sh "docker tag web ${IMAGE_TAG}"
-                    
+
                     withCredentials([usernamePassword(credentialsId: 'jose_dockerhub', passwordVariable: 'DOCKER_PASSWORD', usernameVariable: 'DOCKER_USERNAME')]) {
                         sh "echo \$DOCKER_PASSWORD | docker login -u \$DOCKER_USERNAME --password-stdin"
                         sh "docker push ${IMAGE_TAG}"
                     }
                 }
             }
+        }
+    }
+
+    post {
+        success {
+            echo 'Pipeline completed successfully.'
+        }
+        failure {
+            echo 'Pipeline failed.'
         }
     }
 }
