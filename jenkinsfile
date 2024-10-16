@@ -1,12 +1,17 @@
 pipeline {
     agent any
 
+    environment {
+        IMAGE_TAG = ''
+    }
+
     stages {
         stage('Checkout') {
             steps {
                 script {
                     def branchName = "${env.GIT_BRANCH}".replace("origin/", "")
                     echo "Current branch: ${branchName}"  // Print the branch name
+                    IMAGE_TAG = "josephpatricksoloman/${branchName == 'dev' ? 'dev' : 'prod'}:latest"
                     git branch: branchName, url: 'https://github.com/josephpatricksoloman/web-app.git'
                 }
             }
@@ -24,14 +29,12 @@ pipeline {
         stage('Push to Docker Hub') {
             steps {
                 script {
-                    // Adjust the branch name check to match the actual branch name
-                    def imageTag = "josephpatricksoloman/${branchName == 'dev' ? 'dev' : 'prod'}:latest"
-                    echo "Pushing image with tag: ${imageTag}"  // Print the image tag being pushed
-                    sh "docker tag web ${imageTag}"
+                    echo "Pushing image with tag: ${IMAGE_TAG}"  // Print the image tag being pushed
+                    sh "docker tag web ${IMAGE_TAG}"
                     
                     withCredentials([usernamePassword(credentialsId: 'jose_dockerhub', passwordVariable: 'DOCKER_PASSWORD', usernameVariable: 'DOCKER_USERNAME')]) {
                         sh "echo \$DOCKER_PASSWORD | docker login -u \$DOCKER_USERNAME --password-stdin"
-                        sh "docker push ${imageTag}"
+                        sh "docker push ${IMAGE_TAG}"
                     }
                 }
             }
