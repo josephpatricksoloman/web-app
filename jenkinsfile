@@ -10,9 +10,8 @@ pipeline {
             steps {
                 script {
                     def branchName = "${env.GIT_BRANCH}".replace("origin/", "")
-                    echo "Current branch: ${branchName}"  // Print the branch name
+                    echo "Current branch: ${branchName}"
 
-                    // Set IMAGE_TAG based on the branch name
                     if (branchName == 'dev') {
                         IMAGE_TAG = "josephpatricksoloman/dev:latest"
                     } else if (branchName == 'main') {
@@ -38,29 +37,15 @@ pipeline {
         stage('Push to Docker Hub') {
             steps {
                 script {
-                    echo "Pushing image with tag: ${IMAGE_TAG}"  // Print the image tag being pushed
-                    sh "docker tag web ${IMAGE_TAG}"
-
-                    withCredentials([usernamePassword(credentialsId: 'jose_dockerhub', passwordVariable: 'DOCKER_PASSWORD', usernameVariable: 'DOCKER_USERNAME')]) {
-                        sh "echo \$DOCKER_PASSWORD | docker login -u \$DOCKER_USERNAME --password-stdin"
-                        sh "docker push ${IMAGE_TAG}"
+                    // Check if this is a merge from dev to master
+                    if (env.GIT_PREVIOUS_SUCCESSFUL_BRANCH == 'dev' && env.GIT_BRANCH == 'main') {
+                        echo "Merging from dev to main, pushing to production."
+                        IMAGE_TAG = "josephpatricksoloman/prod:latest"
                     }
-                }
-            }
-        }
-    }
 
-    post {
-        success {
-            script {
-                // Check if the build was triggered by a merge from dev to master
-                if (env.GIT_BRANCH == 'main' && env.CHANGE_ID) {
-                    echo "Detected merge from dev to main. Pushing to prod repository."
-
-                    // Push to production repository if on master
-                    IMAGE_TAG = "josephpatricksoloman/prod:latest"
+                    echo "Pushing image with tag: ${IMAGE_TAG}"
                     sh "docker tag web ${IMAGE_TAG}"
-
+                    
                     withCredentials([usernamePassword(credentialsId: 'jose_dockerhub', passwordVariable: 'DOCKER_PASSWORD', usernameVariable: 'DOCKER_USERNAME')]) {
                         sh "echo \$DOCKER_PASSWORD | docker login -u \$DOCKER_USERNAME --password-stdin"
                         sh "docker push ${IMAGE_TAG}"
