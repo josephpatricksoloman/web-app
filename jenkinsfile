@@ -1,59 +1,39 @@
 pipeline {
-
     agent any
 
- 
-
     stages {
-
         stage('Checkout') {
-
             steps {
-
-                git branch: "${env.GIT_BRANCH}", url: 'https://github.com/josephpatricksoloman/web-app.git'
-
+                // Make sure the branch is set correctly
+                script {
+                    def branchName = "${env.GIT_BRANCH}".replace("origin/", "")
+                    git branch: branchName, url: 'https://github.com/josephpatricksoloman/web-app.git'
+                }
             }
-
         }
 
         stage('Build') {
-
             steps {
-
                 script {
-
                     sh 'bash build.sh'
-
+                    // Optional: Build the Docker image
+                    sh 'docker build -t web .'
                 }
-
             }
-
         }
 
         stage('Push to Docker Hub') {
-
             steps {
-
                 script {
-
-                    def imageTag = "josephpatricksoloman/${env.GIT_BRANCH == 'origin/dev' ? 'dev' : 'prod'}:latest"
-
+                    def imageTag = "josephpatricksoloman/${env.GIT_BRANCH == 'dev' ? 'dev' : 'prod'}:latest"
                     sh "docker tag web ${imageTag}"
-
+                    
                     withCredentials([usernamePassword(credentialsId: 'jose_dockerhub', passwordVariable: 'DOCKER_PASSWORD', usernameVariable: 'DOCKER_USERNAME')]) {
-
-                        sh "echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin"
-
+                        sh "echo \$DOCKER_PASSWORD | docker login -u \$DOCKER_USERNAME --password-stdin"
                         sh "docker push ${imageTag}"
-
                     }
-
                 }
-
             }
-
         }
-
     }
-
 }
